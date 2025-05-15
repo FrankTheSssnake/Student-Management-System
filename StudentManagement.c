@@ -3,8 +3,6 @@
 #include<stdlib.h>
 #include<ctype.h>
 
-
-
  struct student{
     int id;
     char name[50];
@@ -15,10 +13,42 @@ typedef struct student student;
 char filename[50];
 student* students = NULL;
 int StudentCount=0;
+int ismodified=0;
+int IdLength = 2;      // Default ID length ("ID")
+int NameLength = 4;    // Default Name length ("Name")
+int MarksLength = 5;   // Default Marks length ("Marks")
+
+void updateColumnWidth()
+{
+  IdLength=2;
+   NameLength = 4; 
+    MarksLength = 5;
+    for(int i=0;i<StudentCount;i++)
+    {
+      int idWidth=snprintf(NULL,0,"%d",students[i].id);
+      if(idWidth>IdLength) IdLength=idWidth;
+
+      int nameWidth=strlen(students[i].name);
+      if(nameWidth>NameLength) NameLength=nameWidth;
+
+    }
+}
+
+void printdash(FILE*file)
+{
+ 
+     int sNoWidth = snprintf(NULL, 0, "%d", StudentCount) + 1;
+   int totalWidth=5+sNoWidth+IdLength+NameLength+12;
+     for(int i=0;i<totalWidth;i++)
+     fprintf(file,"-");
+
+     fprintf(file,"\n");
+}
 
 void clearbuffer()
 {
-    while(getchar()!='\n');
+  int c;
+    while((c=getchar())!='\n'&&c!=EOF);
 }
 
 void addTxtExtension() {
@@ -81,13 +111,20 @@ void loadStudentFromFile()
   fgets(headerline,sizeof(headerline),file);
   fgets(headerline,sizeof(headerline),file);
 
+  
   student temp;
+  
   int sNo;
 
   while(fscanf(file, " %d | %d | %[^|] | %f\n", &sNo, &temp.id, temp.name, &temp.marks) == 4)
   {
     trimTrailingSpaces(temp.name);
     students=realloc(students,(StudentCount+1)*sizeof(student));
+    if(students==NULL)
+    {
+      printf("Memory allocation failed.\n");
+      exit(1);
+    }
     students[StudentCount++]=temp;
   }
   fclose(file);
@@ -103,6 +140,14 @@ void sortAndSaveToFile()
   }
 
 
+  updateColumnWidth();
+  // Calculate the width of S.No based on StudentCount
+    int sNoWidth = snprintf(NULL, 0, "%d", StudentCount) + 1;
+
+     fprintf(file, "%-*s | %-*s | %-*s | %-*s\n",sNoWidth-1, "S.No", IdLength, "ID", NameLength, "Name", MarksLength, "Marks");
+      printdash(file);
+
+
   for(int i=0;i<StudentCount-1;i++)
   {
     for(int j=0;j<StudentCount-i-1;j++)
@@ -116,16 +161,15 @@ void sortAndSaveToFile()
     }
   }
 
-   
-  fprintf(file,"S.No  | ID    | Name            | Marks\n");
-    fprintf(file, "--------------------------------------------\n");
+
     for (int i = 0; i < StudentCount; i++)
     {
         // Writing sorted student data to the file
-        fprintf(file, " %-4d | %-5d | %-15s | %.2f\n", i + 1, students[i].id, students[i].name, students[i].marks);
+        fprintf(file, " %-*d | %-*d | %-*s | %.2f\n",sNoWidth+1,i+1,IdLength, students[i].id,NameLength, students[i].name, students[i].marks);
     }
-     fprintf(file, "--------------------------------------------\n");
+     printdash(file);
 
+     fflush(file);
   fclose(file);
      printf("Data Saved in File.\n");
   
@@ -191,9 +235,16 @@ void addStudent()
     } while (!validateMarks(newStudent.marks));
 
   students = realloc(students,(StudentCount+1)*sizeof(student));
+  {
+    if(students==NULL)
+    {
+      printf("Memory allocatiion failed.\n");
+      exit(1);
+    }
+  }
   students[StudentCount++] = newStudent;
 
-  sortAndSaveToFile();
+  ismodified=1;
   printf("Student Record has been updated.\n");
 }
 
@@ -205,46 +256,23 @@ void displayStudents()
     printf("Error opening file.\n");
     return;
   }
-  char line[300];
+  char line[500];
   
-  printf("\n------ Displaying All Student Record -------\n");
+  printf("\nDisplaying All Student Record \n");
 
-  if(StudentCount==0)
-  {
-    printf("No Students found.\n");
-    return;
-  }
-   
   while(fgets(line, sizeof(line),file))
   {
     printf("%s",line);
   }
   fclose(file);
-
-
   return;
 }
 
 int searchStudents()
 {
-  char line[300];
-  char headerline[300];
   char searchTerm[50];
   int found = 0;
   int isNumericSearch=1;
-
- FILE* file= fopen(filename,"r");
-
-  if(file==NULL)
-  {
-    printf("error in opening file.\n");
-    return 0;
-  }
-
-  fgets(headerline, sizeof(headerline),file);
-  fgets(headerline,sizeof(headerline),file);
-
- 
  
   fgets(searchTerm,sizeof(searchTerm),stdin);
   searchTerm[strcspn(searchTerm,"\n")]='\0';
@@ -259,44 +287,29 @@ int searchStudents()
   }
 
   printf("\nsearching for %s\n",searchTerm);
-   
-
-  while(fgets(line,sizeof(line),file))
+    // trailing space for searching.
+  if(!isNumericSearch)
+ {
+  trimTrailingSpaces(searchTerm);
+ }
+  for(int i=0;i<StudentCount;i++)
   {
-    int sNo, id;
-    char name[50];
-    float marks;
-
-    int read = sscanf(line," %d | %d | %[^|] | %f",&sNo,&id,name,&marks);
-     if(read==4)
+    if((validateNumber(searchTerm)&&atoi(searchTerm)==students[i].id)||(validateName(searchTerm)&&strcmp(searchTerm,students[i].name)==0))
     {
-      name[strcspn(name," ")]='\0';
 
-     if((isNumericSearch&& id==atoi(searchTerm))||(!isNumericSearch && strcmp(name,searchTerm)==0))
-     {
-      printf("\nfound record:\n");
-        printf("S.No  | ID    | Name            | Marks\n");
-    printf( "--------------------------------------------\n");
-       printf(" %-4d | %-5d | %-15s | %.2f\n", sNo, id, name, marks);
       found=1;
-      break;
-     }
+      printf("Student record found for %s.\n",searchTerm);
+      printf("ID: %d, Name: %s, Marks: %.2f\n",students[i].id,students[i].name,students[i].marks);
     }
   }
   if(!found)
   {
-  fclose(file);
+  
     printf("No record found for %s.\n",searchTerm);
     return 0;
   }
-
-  if(found)
-  {
-    fclose(file);
-    return 1;
-  }
-
-  
+  else 
+  return 1;
 }
 
 void updateStudents()
@@ -308,8 +321,6 @@ void updateStudents()
     printf("enter student ID or Name to update: ");
     fgets(searchTerm, sizeof(searchTerm), stdin);
     searchTerm[strcspn(searchTerm, "\n")] = '\0';
-
-   
 
     // Search through the array of students
     for (int i = 0; i < StudentCount; i++)
@@ -395,8 +406,8 @@ void updateStudents()
         printf("\nNo record found for %s.\n", searchTerm);
     }
 
-    // Save the changes to the file
-    sortAndSaveToFile();
+    // Save the changes to the array
+    ismodified=1;
 
   }
 
@@ -434,10 +445,16 @@ void deleteStudents()
         }
         StudentCount--;
         students=realloc(students,StudentCount*sizeof(student));
+        {
+          if(students==NULL)
+          {
+            printf("Memory allocation failed.\n");
+          }
+        }
         printf("\nStudent record deleted successfully.\n");
 
-        //save the updated list in file
-        sortAndSaveToFile();
+        //save the updated list to the array
+        ismodified=1;
         break;
        }
   } 
@@ -472,8 +489,11 @@ int main()
         break;
         
         case 2:
-        displayStudents();
-        break;
+            if(ismodified){
+            sortAndSaveToFile();
+            }
+             displayStudents();
+             break;
         
         case 3:
          printf("enter Student ID or Name to search: ");
@@ -489,18 +509,19 @@ int main()
         break;
 
         case 6:
+        if(ismodified)
+        sortAndSaveToFile();
         printf("\nThank you for using the Student Management System!\n");
-;
+        exit(1);
         break;
 
-        
         default:
         printf("Invalid choice.Try again.\n"); 
       }
-    }while(choice!=6||choice==1||choice==2||choice==3||choice==4||choice==5);
+      }while(1);
 
 
-    free(students);
+      free(students);
 
-    return 0;
+       return 0;
 }
