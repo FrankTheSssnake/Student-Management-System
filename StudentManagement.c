@@ -114,7 +114,7 @@ void loadStudentFromFile() {
         return;
     }
 
-    // Dynamically read and discard the first three header lines
+    // Dynamically read and discard the first two header lines
     char* headerline = NULL;
     size_t len = 0;
     for (int i = 0; i < 2; i++) {
