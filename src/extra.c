@@ -8,7 +8,7 @@
 
 #include "../include/extra.h"
 
-int widths[NO_OF_COLUMNS] = { 4, 4, 4 };
+int widths[NO_OF_COLUMNS] = { 5, 5, 5 };
 const char* headers[NO_OF_COLUMNS] = { "ID", "Name", "Marks" };
 
 
@@ -102,18 +102,18 @@ void calculate_widths(char *header) {
     char *pattern = get_pattern();
 
     regex_t regex;
-    regmatch_t matches[sizeof(headers) / sizeof(headers[0]) + 1];
+    regmatch_t matches[NO_OF_COLUMNS + 1];
 
     if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
         fputs("Internal Error: Failed to compiler Regex\n", stderr);
         exit(1);
     }
 
-    int ret = regexec(&regex, header, 4, matches, 0);
+    int ret = regexec(&regex, header, NO_OF_COLUMNS + 1, matches, 0);
 
     if (ret == 0) {
     
-        for (int i = 1; i < 4; i++) {
+        for (int i = 1; i < NO_OF_COLUMNS + 1; i++) {
             widths[i-1] = ( matches[i].rm_eo - matches[i].rm_so ) + strlen(headers[i-1]) - 1;
         }
 
@@ -182,12 +182,18 @@ char *format_header() {
     return output;
 }
 
+
 char *format_seperator() {
-    char* output = "";
 
     int total_width = sum(widths);
+    total_width += 3 * (NO_OF_COLUMNS - 1);
+    
+    char *output = malloc(total_width + 2);
+    output[0] = '\0';
 
     for (int i = 0; i < total_width; i++) strcat(output, "-");
+    
+    output[total_width + 2] = '\0';
 
     return output;
 }
@@ -207,8 +213,6 @@ void fprint_head(int fd) {
 
     free(header);
     free(seperator);
-
-    fclose(fp);
 }
 
 

@@ -35,8 +35,6 @@ void load_file(int fd, student *students) {
 
 void save_file(int fd, student* students) {
 
-    qsort(students, count, sizeof(student), compare_by_id);
-
     FILE* fp = fdopen(fd, O_WRONLY);
 
     if (ftell(fp) == 0) fprint_head(fd);
@@ -46,7 +44,13 @@ void save_file(int fd, student* students) {
 
         char *entry = format_entry(cur_student);
 
+        if (entry == NULL) {
+            continue;
+        }
+
         fprintf(fp, "%s", entry);
+
+        free(entry);
     }
 
     fclose(fp);
@@ -80,9 +84,8 @@ int main(int argc, char *argv[]) {
             case '1':
                 add_std(&students);
                 break;
-            case '2':
-                
-                disp_std(students, count);
+            case '2': 
+                disp_stds(students);
                 break;
             case '3':
                 search_std(students);
