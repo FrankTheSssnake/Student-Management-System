@@ -13,11 +13,13 @@ char* read_name();
 
 student read_std();
 
+void free_students(student*);
+
 void add_std(student**);
 
-void disp_std(student*, int);
+void disp_stds(student*);
 
-void free_students(student*);
+void disp_std(student*, int);
 
 int search_by_id(student*, int);
 
@@ -29,5 +31,8 @@ void update_std(student*);
 
 void del_std(student**);
 
-#endif
+char *format_entry(student);
 
+int compare_by_id(const void*, const void*);
+
+#endif

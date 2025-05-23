@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "student.h"
-#include "extra.h"
+#include "../include/student.h"
+#include "../include/extra.h"
 
 int count = 0;
-int widths[4];
+
 
 char* read_name() {
     char* name;
@@ -18,7 +18,7 @@ char* read_name() {
 
     name = malloc(strlen(buffer) + 1);
     if (name == NULL) {
-        fputs("Failed to allocate memory.", stderr);
+        fputs("Internal Error: Failed to allocate memory.\n", stderr);
         exit(1);
     }
 
@@ -59,22 +59,30 @@ void add_std(student **students) {
 
     student *tmp = realloc(*students, sizeof(student) * (count + 1));
     if (tmp == NULL) {
-        fputs("Failed to allocate memory.\n", stderr);
+        fputs("Internal Error: Failed to allocate memory.\n", stderr);
         exit(1);
     }
+
+    *students = tmp;
 
     (*students)[count++] = new_student;
 }
 
 
-void disp_std(student *student, int std_count) {
-    if (std_count == 0) {
-        fputs("No Students Found.\n", stderr);
-        exit(0);
+void disp_stds(student *students) {
+    for (int i = 0; i < count; i++) {
+        char *entry = format_entry(students[i]);
+        puts(entry);
+        free(entry);
     }
+}
 
-    char *header = format_header(widths);
-    char *seperator = format_seperator(sum(widths));
+void disp_std(student* students, int std_count) {
+    for (int i = 0; i < std_count; i++) {
+        char *entry = format_entry(students[i]);
+        puts(entry);
+        free(entry);
+    }
 }
 
 
@@ -121,7 +129,11 @@ void search_std(student *students) {
         }
         case '2': {
             char* name = read_name();
+            trim(name);
+
             index = search_by_name(students, name);
+            
+            free(name);
             break;
         }
         default:
@@ -174,7 +186,7 @@ void del_std(student **students) {
 
     student *tmp = realloc(*students, sizeof(student) * (count - 1));
     if (tmp == NULL) {
-        fputs("Failed to deallocate memory.\n", stderr);
+        fputs("Internal Error: Failed to deallocate memory.\n", stderr);
         exit(1);
     }
     
@@ -182,3 +194,34 @@ void del_std(student **students) {
     *students = tmp;
 }
 
+
+char *format_entry(student input_std) {
+
+    int needed = snprintf(NULL, 0, "%-*d | %-*s | %-*.2f\n",
+            widths[0], input_std.id,
+            widths[1], input_std.name,
+            widths[2], input_std.marks
+    );
+
+    char *output = malloc(needed + 1);
+
+    if (output == NULL) {
+        fputs("Internal Error: Failed to allocate memory", stderr);
+        exit(1);
+    }
+
+    snprintf(output, needed + 1, "%-*d | %-*s | %-*.2f\n",
+            widths[0], input_std.id,
+            widths[1], input_std.name,
+            widths[2], input_std.marks
+    );
+
+    return output;
+}
+
+
+int compare_by_id(const void *a, const void *b) {
+    student *s1 = (student *)a;
+    student *s2 = (student *)b;
+    return s1->id - s2->id;
+}

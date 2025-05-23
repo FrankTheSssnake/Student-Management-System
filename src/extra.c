@@ -1,10 +1,15 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <regex.h>
 
-#include "extra.h"
+#include "../include/extra.h"
+
+int widths[NO_OF_COLUMNS] = { 4, 4, 4 };
+const char* headers[NO_OF_COLUMNS] = { "ID", "Name", "Marks" };
 
 
 int sum(int arr[]) {
@@ -23,66 +28,19 @@ int sum(int arr[]) {
     return output;
 }
 
+
 void flush_stdin() {
     int c;
     while((c = getchar()) != '\n' && c != EOF);
 }
 
 
-char* join_array(char *arr[], int length) {
-    char* output = "";
+char read_char() {
+    char output = getchar();
 
-    for (int i = 0; i < length; i++) strcat(output, arr[i]);
-
-    return output;
-}
-
-
-char *format_header(int widths[]) {
-    char *out_arr[] = {};
-
-    const char *columns[] = { "ID", "Name", "Marks" };
-
-    size_t column_count = sizeof(columns) / sizeof(columns[0]);
-
-    for (int i = 0; i < column_count; i++) {
-        const char *column = columns[i];
-        int length = strlen(column);
-
-        // calculation to compute final string
-    }
-
-    size_t length = sizeof(out_arr) / sizeof(out_arr[0]);
-
-    char *output = join_array(out_arr, length);
+    flush_stdin();
 
     return output;
-}
-
-
-char *format_seperator(int total_width) {
-    char* output = "";
-
-    for (int i = 0; i < total_width; i++) strcat(output, "-");
-
-    return output;
-}
-
-
-void fprint_head(int fd, int widths[]) {
-    int total_width = sum(widths);
-
-    char output[] = "";
-
-    char *header = format_header(widths);
-    char *seperator = format_seperator(total_width);
-
-    strcat(output, header);
-    strcat(output, seperator);
-
-    FILE *fp = fdopen(fd, O_WRONLY);
-    fputs(output, fp);
-    fclose(fp);
 }
 
 
@@ -100,6 +58,159 @@ int isalpha_str(char *input) {
     return 1;
 }
 
+    
+void trim(char *input) {
+    if (input == NULL) return;
+
+    size_t len = strlen(input);
+
+    while (len > 0 && isspace((unsigned char)input[len - 1])) {
+        len--;
+    }
+
+    input[len] = '\0';
+}
+
+
+char *get_pattern() {
+    
+    int length = 1 + (8 * NO_OF_COLUMNS) + 1;
+
+    for (int i = 0; i < NO_OF_COLUMNS; i++) {
+        length += strlen(headers[i]);
+    }
+    length -= 3;
+    
+    char *pattern = malloc(length);
+
+    pattern[0] = '^';
+
+    for (int i = 0; i < NO_OF_COLUMNS; i++) {
+        strcat(pattern, headers[i]);
+        strcat(pattern, "(\\s*)\\| ");
+    }
+    
+    pattern[length - 1] = '$';
+    pattern[length] = '\0';
+
+    return pattern;
+}
+
+
+void calculate_widths(char *header) {
+
+    char *pattern = get_pattern();
+
+    regex_t regex;
+    regmatch_t matches[sizeof(headers) / sizeof(headers[0]) + 1];
+
+    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
+        fputs("Internal Error: Failed to compiler Regex\n", stderr);
+        exit(1);
+    }
+
+    int ret = regexec(&regex, header, 4, matches, 0);
+
+    if (ret == 0) {
+    
+        for (int i = 1; i < 4; i++) {
+            widths[i-1] = ( matches[i].rm_eo - matches[i].rm_so ) + strlen(headers[i-1]) - 1;
+        }
+
+    } else {
+        fputs("Internal Error: Regex Failed\n", stderr);
+        exit(1);
+    }
+
+    regfree(&regex);
+    free(pattern);
+}
+
+
+int count_lines(FILE *fp) {
+    int lines = 0;
+    char ch;
+
+    while ((ch = fgetc(fp)) != EOF) {
+        if (ch == '\n') {
+            lines++;
+        }
+    }
+
+    rewind(fp);
+
+    return lines;
+}
+
+
+char *format_header() {
+
+    char *output = malloc(1);
+
+    if (output == NULL) {
+        fputs("Internal Error: Failed to allocate memory", stderr);
+        exit(1);
+    }
+
+    int output_len = 1;
+
+    output[0] = '\0';
+
+    for (int i = 0; i < NO_OF_COLUMNS; i++) {
+        int needed = snprintf(NULL, 0, "%-*s | ", widths[i], headers[i]);
+
+        char *temp = malloc(needed + 1);
+
+        if (temp == NULL) {
+            fputs("Internal Error: Failed to allocate memory", stderr);
+            exit(1);        
+        }
+
+        snprintf(temp, needed + 1, "%-*s | ", widths[i], headers[i]);
+
+        output = realloc(output, output_len + needed);
+
+        strcat(output, temp);
+
+        free(temp);
+
+        output_len += needed;
+    }
+
+    output[strlen(output) - 2] = '\0';
+
+    return output;
+}
+
+char *format_seperator() {
+    char* output = "";
+
+    int total_width = sum(widths);
+
+    for (int i = 0; i < total_width; i++) strcat(output, "-");
+
+    return output;
+}
+
+
+void fprint_head(int fd) {
+
+    char *header = format_header();
+    char *seperator = format_seperator();
+
+    FILE *fp = fdopen(fd, "w");
+
+    fputs(header, fp);
+    fputs("\n", fp);
+    fputs(seperator, fp);
+    fputs("\n", fp);
+
+    free(header);
+    free(seperator);
+
+    fclose(fp);
+}
+
 
 void perror_open(char *filename) {
     switch (errno) {
@@ -114,9 +225,6 @@ void perror_open(char *filename) {
             break;
         case ENOTDIR:
             fprintf(stderr, "Error: A component of the path in '%s' is not a directory.\n", filename);
-            break;
-        case EEXIST:
-            fprintf(stderr, "Error: File '%s' already exists (used with O_EXCL).\n", filename);
             break;
         case EROFS:
             fprintf(stderr, "Error: Filesystem is read-only. Cannot open '%s' for writing.\n", filename);

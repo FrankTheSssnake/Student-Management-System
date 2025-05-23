@@ -3,26 +3,53 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "extra.h"
-#include "student.h"
+#include "../include/extra.h"
+#include "../include/student.h"
 
 
 void load_file(int fd, student *students) {
-    // TODO
-    // 1. Check if file has data
-    // 2. If it does not, return
-    // 3. If it does, discard first two lines
-    // 4. Count number of lines
-    // 5. Allocate appropriate memory for students
-    // 6. Read every line and scanf into student
+
+    FILE *fp = fdopen(fd, O_RDONLY);
+
+    int ch = fgetc(fp);
+    if (ch == EOF) exit(1);
+    ungetc(ch, fp);
+
+    char buffer[100];
+    fgets(buffer, sizeof(buffer), fp);
+    calculate_widths(buffer);
+
+    fgets(buffer, sizeof(buffer), fp);
+
+    count = count_lines(fp);
+
+    students = realloc(students, count * sizeof(student));
+
+    for (int i = 0; i < count; i++) {
+        fscanf(fp, "%d | %[^|] | %f\n", &students[i].id, students[i].name, &students[i].marks);
+    }
+
+    fclose(fp);
 }
 
 
 void save_file(int fd, student* students) {
-    // TODO
-    // 1. Check if file has data
-    // 2. If it does not, write header into it, goto 3
-    // 3. Write every students data by fprintf
+
+    qsort(students, count, sizeof(student), compare_by_id);
+
+    FILE* fp = fdopen(fd, O_WRONLY);
+
+    if (ftell(fp) == 0) fprint_head(fd);
+
+    for (int i = 0; i < count; i++) {
+        student cur_student = students[i];
+
+        char *entry = format_entry(cur_student);
+
+        fprintf(fp, "%s", entry);
+    }
+
+    fclose(fp);
 }
 
 
@@ -49,11 +76,12 @@ int main(int argc, char *argv[]) {
 
         puts(menu);
 
-        switch (getchar()) {
+        switch (read_char()) {
             case '1':
                 add_std(&students);
                 break;
             case '2':
+                
                 disp_std(students, count);
                 break;
             case '3':
@@ -77,15 +105,12 @@ int main(int argc, char *argv[]) {
                 fputs("Invalid Choice.\n", stderr);
                 break;
         }
-
-        flush_stdin();
     }
 
     end: { 
         close(fd);
-    }
-    
-    
+        free(students);
+    } 
 
     return 0;
 }

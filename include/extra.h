@@ -1,24 +1,37 @@
 #ifndef EXTRA_H
 #define EXTRA_H
 
-int sum(int*);
+#include <stdio.h>
+
+#include "../include/student.h"
+
+#define NO_OF_COLUMNS 3
+
+extern int widths[NO_OF_COLUMNS];
+extern const char* headers[NO_OF_COLUMNS];
+
+int sum(int arr[]);
 
 void flush_stdin(void);
 
-char *join_array(char**, int);
+char read_char(void);
 
-char *format_header(int *);
+int isalpha_str(char *input);
 
-char *format_seperator(int);
+void trim(char *input);
 
-void fprint_head(int, int*);
+char *get_pattern(void);
 
-void trim(char*);
+void calculate_widths(char *header);
 
-int isalpha_str(char*);
+int count_lines(FILE *fp);
 
-int isnum_str(char*);
+char *format_header(void);
 
-void perror_open(char *filename);
+char *format_seperator(void);
+
+void fprint_head(int fd);
+
+void perror_open(char*);
 
 #endif
